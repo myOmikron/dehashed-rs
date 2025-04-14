@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use log::warn;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use tracing::warn;
 
 use crate::api::SearchResult;
 use crate::{DehashedApi, DehashedError, Query};

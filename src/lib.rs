@@ -7,14 +7,14 @@
 //! ## Usage
 //!
 //!
-//! ```
+//! ```rust
 //! use dehashed_rs::*;
-//!
+//! # tokio_test::block_on(async {
 //! let email = "test@example.com".to_string();
 //! let api_key = "<api_key>".to_string();
 //!
 //! // Create an api instance
-//! let api = DehashedApi::new(email, api_key).unwrap();
+//! let api = DehashedApi::new(api_key).unwrap();
 //!
 //! // Query for the domain example.com
 //! if let Ok(res) = api
@@ -23,20 +23,21 @@
 //! {
 //!     println!("{res:?}");
 //! }
+//! # })
 //! ```
 //!
 //! or if you enable the `tokio` feature, you can utilize the scheduler to abstract
 //! away the need to manage get past the rate limit:
 //!
-//! ```
+//! ```rust
 //! use dehashed_rs::*;
 //! use tokio::sync::oneshot;
-//!
+//!# tokio_test::block_on(async {
 //! let email = "test@example.com".to_string();
 //! let api_key = "<api_key>".to_string();
 //!
 //! // Create an api instance
-//! let api = DehashedApi::new(email, api_key).unwrap();
+//! let api = DehashedApi::new(api_key).unwrap();
 //! // Create the scheduler
 //! let scheduler = api.start_scheduler();
 //!
@@ -47,7 +48,7 @@
 //! // Schedule a query for the email "test@example.com"
 //! tx.send(ScheduledRequest::new(
 //!     Query::Email(SearchType::Simple("test@example.com".to_string())),
-//!     ret_tx, //!
+//!     ret_tx,
 //! ))
 //! .await
 //! .unwrap();
@@ -56,11 +57,11 @@
 //! if let Ok(res) = ret_rx.await {
 //!     println!("{res:?}");
 //! }
+//! # })
 //! ```
 //!
 //! If you need type definitions for utoipa, there available under the feature flag `utoipa`.
 
-#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 #![warn(missing_docs)]
 
 pub use api::*;

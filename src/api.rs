@@ -1,21 +1,20 @@
-use std::fmt::Write;
-use std::net::IpAddr;
-use std::str::FromStr;
+use std::fmt::{Display, Formatter, Write};
 use std::time::Duration;
 
-use log::{debug, error};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 #[cfg(feature = "tokio")]
 use tokio::time::sleep;
+use tracing::{debug, error, warn};
 
-use crate::error::DehashedError;
-use crate::res::{Entry, Response};
 #[cfg(feature = "tokio")]
 use crate::Scheduler;
+use crate::error::DehashedError;
+use crate::res::{Entry, Response};
 
-const URL: &str = "https://api.dehashed.com/search";
+const URL: &str = "https://api.dehashed.com/v2/search";
 const RESERVED: [char; 21] = [
     '+', '-', '=', '&', '|', '>', '<', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?',
     ':', '\\',
@@ -50,23 +49,27 @@ pub enum SearchType {
     And(Vec<SearchType>),
 }
 
-impl ToString for SearchType {
-    fn to_string(&self) -> String {
-        match self {
-            SearchType::Simple(x) => escape(x),
-            SearchType::Exact(x) => format!("\"{}\"", escape(x)),
-            SearchType::Regex(x) => format!("/{}/", escape(x)),
-            SearchType::Or(x) => x
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(" OR "),
-            SearchType::And(x) => x
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(" "),
-        }
+impl Display for SearchType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SearchType::Simple(x) => x.clone(),
+                SearchType::Exact(x) => format!("\"{}\"", escape(x)),
+                SearchType::Regex(x) => format!("/{}/", escape(x)),
+                SearchType::Or(x) => x
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" OR "),
+                SearchType::And(x) => x
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            }
+        )
     }
 }
 
@@ -97,20 +100,24 @@ pub enum Query {
     Address(SearchType),
 }
 
-impl ToString for Query {
-    fn to_string(&self) -> String {
-        match self {
-            Query::Email(x) => format!("email:{}", x.to_string()),
-            Query::IpAddress(x) => format!("ip_address:{}", x.to_string()),
-            Query::Username(x) => format!("username:{}", x.to_string()),
-            Query::Password(x) => format!("password:{}", x.to_string()),
-            Query::HashedPassword(x) => format!("hashed_password:{}", x.to_string()),
-            Query::Name(x) => format!("name:{}", x.to_string()),
-            Query::Domain(x) => format!("domain:{}", x.to_string()),
-            Query::Vin(x) => format!("vin:{}", x.to_string()),
-            Query::Phone(x) => format!("phone:{}", x.to_string()),
-            Query::Address(x) => format!("address:{}", x.to_string()),
-        }
+impl Display for Query {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Query::Email(x) => format!("email:{x}"),
+                Query::IpAddress(x) => format!("ip_address:{x}"),
+                Query::Username(x) => format!("username:{x}"),
+                Query::Password(x) => format!("password:{x}"),
+                Query::HashedPassword(x) => format!("hashed_password:{x}"),
+                Query::Name(x) => format!("name:{x}"),
+                Query::Domain(x) => format!("domain:{x}"),
+                Query::Vin(x) => format!("vin:{x}"),
+                Query::Phone(x) => format!("phone:{x}"),
+                Query::Address(x) => format!("address:{x}"),
+            }
+        )
     }
 }
 
@@ -120,105 +127,14 @@ impl ToString for Query {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SearchResult {
     /// A list of results
-    pub entries: Vec<SearchEntry>,
+    pub entries: Vec<Entry>,
     /// The remaining balance
     pub balance: usize,
-}
-
-/// A single entry in a [SearchResult]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct SearchEntry {
-    /// ID of the entry
-    pub id: u64,
-    /// An email address, may be [None] if the result didn't include this field
-    pub email: Option<String>,
-    /// An username, may be [None] if the result didn't include this field
-    pub username: Option<String>,
-    /// A password, may be [None] if the result didn't include this field
-    pub password: Option<String>,
-    /// An hashed password, may be [None] if the result didn't include this field
-    pub hashed_password: Option<String>,
-    /// An ip address, may be [None] if the result didn't include this field
-    pub ip_address: Option<IpAddr>,
-    /// A name, may be [None] if the result didn't include this field
-    pub name: Option<String>,
-    /// A vin, may be [None] if the result didn't include this field
-    pub vin: Option<String>,
-    /// An address, may be [None] if the result didn't include this field
-    pub address: Option<String>,
-    /// A phone, may be [None] if the result didn't include this field
-    pub phone: Option<String>,
-    /// A database name, may be [None] if the result didn't include this field
-    pub database_name: Option<String>,
-}
-
-impl TryFrom<Entry> for SearchEntry {
-    type Error = DehashedError;
-
-    fn try_from(value: Entry) -> Result<Self, Self::Error> {
-        Ok(Self {
-            id: value.id.parse()?,
-            email: if value.email.is_empty() {
-                None
-            } else {
-                Some(value.email)
-            },
-            username: if value.username.is_empty() {
-                None
-            } else {
-                Some(value.username)
-            },
-            password: if value.password.is_empty() {
-                None
-            } else {
-                Some(value.password)
-            },
-            hashed_password: if value.hashed_password.is_empty() {
-                None
-            } else {
-                Some(value.hashed_password)
-            },
-            ip_address: if value.ip_address.is_empty() {
-                None
-            } else {
-                Some(IpAddr::from_str(&value.ip_address)?)
-            },
-            name: if value.name.is_empty() {
-                None
-            } else {
-                Some(value.name)
-            },
-            vin: if value.vin.is_empty() {
-                None
-            } else {
-                Some(value.vin)
-            },
-            address: if value.address.is_empty() {
-                None
-            } else {
-                Some(value.address)
-            },
-            phone: if value.phone.is_empty() {
-                None
-            } else {
-                Some(value.phone)
-            },
-            database_name: if value.database_name.is_empty() {
-                None
-            } else {
-                Some(value.database_name)
-            },
-        })
-    }
 }
 
 /// The instance of the dehashed api
 #[derive(Clone, Debug)]
 pub struct DehashedApi {
-    email: String,
-    api_key: String,
     client: Client,
 }
 
@@ -230,9 +146,10 @@ impl DehashedApi {
     /// - `api_key`: The api key for your account (found on your profile page)
     ///
     /// This method fails if the [Client] could not be constructed
-    pub fn new(email: String, api_key: String) -> Result<Self, DehashedError> {
+    pub fn new(api_key: String) -> Result<Self, DehashedError> {
         let mut header_map = HeaderMap::new();
         header_map.insert("Accept", HeaderValue::from_static("application/json"));
+        header_map.insert("Dehashed-Api-Key", HeaderValue::from_str(&api_key)?);
 
         let client = Client::builder()
             .timeout(Duration::from_secs(10))
@@ -240,11 +157,7 @@ impl DehashedApi {
             .default_headers(header_map)
             .build()?;
 
-        Ok(Self {
-            email,
-            client,
-            api_key: api_key.to_lowercase(),
-        })
+        Ok(Self { client })
     }
 
     async fn raw_req(
@@ -255,35 +168,32 @@ impl DehashedApi {
     ) -> Result<Response, DehashedError> {
         let res = self
             .client
-            .get(URL)
-            .basic_auth(&self.email, Some(&self.api_key))
-            .query(&[
-                ("size", size.to_string()),
-                ("query", query),
-                ("page", page.to_string()),
-            ])
+            .post(URL)
+            .json(&json!({"query": query, "size": size, "page": page}))
             .send()
             .await?;
 
         let status = res.status();
+        let raw = res.text().await?;
+        debug!("status code: {status}. Raw: {raw}");
         if status == StatusCode::from_u16(302).unwrap() {
             Err(DehashedError::InvalidQuery)
         } else if status == StatusCode::from_u16(400).unwrap() {
-            Err(DehashedError::RateLimited)
+            Err(DehashedError::Unknown(raw))
         } else if status == StatusCode::from_u16(401).unwrap() {
             Err(DehashedError::Unauthorized)
         } else if status == StatusCode::from_u16(200).unwrap() {
-            let raw = res.text().await?;
-
             match serde_json::from_str(&raw) {
                 Ok(result) => Ok(result),
                 Err(err) => {
                     error!("Error deserializing data: {err}. Raw data: {raw}");
-                    Err(DehashedError::Unknown)
+                    Err(DehashedError::Unknown(raw))
                 }
             }
         } else {
-            Err(DehashedError::Unknown)
+            warn!("Invalid response, status code: {status}. Raw: {raw}");
+
+            Err(DehashedError::Unknown(raw))
         }
     }
 
@@ -304,14 +214,9 @@ impl DehashedApi {
         for page in 1.. {
             let res = self.raw_req(10_000, page, q.clone()).await?;
 
-            if !res.success {
-                error!("Success field in response is set to false");
-                return Err(DehashedError::Unknown);
-            }
-
             if let Some(entries) = res.entries {
                 for entry in entries {
-                    search_result.entries.push(entry.try_into()?)
+                    search_result.entries.push(entry)
                 }
             }
 

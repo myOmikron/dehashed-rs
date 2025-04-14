@@ -1,6 +1,8 @@
 use std::fmt::{Display, Formatter};
 use std::net::AddrParseError;
 
+use reqwest::header::InvalidHeaderValue;
+
 /// The common error type of this crate
 #[derive(Debug)]
 pub enum DehashedError {
@@ -13,11 +15,13 @@ pub enum DehashedError {
     /// The used account got rate limited
     RateLimited,
     /// An unknown error occurred
-    Unknown,
+    Unknown(String),
     /// An error occurred while parsing an int field
     ParseIntError(std::num::ParseIntError),
     /// An error occurred while parsing an ip addr field
     ParseAddrError(AddrParseError),
+    /// Invalid header value
+    InvalidApiKey(InvalidHeaderValue),
 }
 
 impl Display for DehashedError {
@@ -27,11 +31,14 @@ impl Display for DehashedError {
             DehashedError::Unauthorized => write!(f, "Invalid API credentials"),
             DehashedError::InvalidQuery => write!(f, "The provided query is missing or invalid"),
             DehashedError::RateLimited => write!(f, "The account got rate limited"),
-            DehashedError::Unknown => write!(f, "An unknown error occurred"),
+            DehashedError::Unknown(err) => write!(f, "An unknown error occurred: {err}"),
             DehashedError::ParseIntError(err) => {
                 write!(f, "An error occurred while parsing a response: {err}")
             }
             DehashedError::ParseAddrError(err) => write!(f, "Error while parsing ip addr: {err}"),
+            DehashedError::InvalidApiKey(err) => {
+                write!(f, "Invalid API key, could not put in header: {err}")
+            }
         }
     }
 }
@@ -53,5 +60,11 @@ impl From<std::num::ParseIntError> for DehashedError {
 impl From<AddrParseError> for DehashedError {
     fn from(value: AddrParseError) -> Self {
         Self::ParseAddrError(value)
+    }
+}
+
+impl From<InvalidHeaderValue> for DehashedError {
+    fn from(value: InvalidHeaderValue) -> Self {
+        Self::InvalidApiKey(value)
     }
 }

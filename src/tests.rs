@@ -3,17 +3,16 @@ use std::env;
 #[cfg(feature = "tokio")]
 use tokio::sync::oneshot;
 
-use crate::api::{Query, SearchType};
 use crate::DehashedApi;
 #[cfg(feature = "tokio")]
 use crate::ScheduledRequest;
+use crate::api::{Query, SearchType};
 
 fn setup() -> (DehashedApi, String) {
-    let email = env::var("EMAIL").unwrap();
     let api_key = env::var("API_KEY").unwrap();
     let search = env::var("SEARCH").unwrap();
 
-    let api = DehashedApi::new(email, api_key).unwrap();
+    let api = DehashedApi::new(api_key).unwrap();
 
     (api, search)
 }

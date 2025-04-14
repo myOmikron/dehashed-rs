@@ -4,13 +4,13 @@ use tokio::task::JoinSet;
 
 #[tokio::main]
 async fn main() {
-    let email = "test@example.com".to_string();
+    tracing_subscriber::fmt::init();
     let api_key = "<api_key>".to_string();
 
     let mut set = JoinSet::new();
 
     // Create an api instance
-    let api = DehashedApi::new(email, api_key).unwrap();
+    let api = DehashedApi::new(api_key).unwrap();
     // Create the scheduler
     let scheduler = api.start_scheduler();
 
