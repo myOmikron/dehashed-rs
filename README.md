@@ -12,11 +12,10 @@ This is an SDK for the [dehashed](https://dehashed.com/) api.
 ```rs
 use dehashed_rs::*;
 
-let email = "test@example.com".to_string();
 let api_key = "<api_key>".to_string();
 
 // Create an api instance
-let api = DehashedApi::new(email, api_key).unwrap();
+let api = DehashedApi::new(api_key).unwrap();
 
 // Query for the domain example.com
 if let Ok(res) = api
@@ -34,11 +33,10 @@ away the need to manage get past the rate limit:
 use dehashed_rs::*;
 use tokio::sync::oneshot;
 
-let email = "test@example.com".to_string();
 let api_key = "<api_key>".to_string();
 
 // Create an api instance
-let api = DehashedApi::new(email, api_key).unwrap();
+let api = DehashedApi::new(api_key).unwrap();
 // Create the scheduler
 let scheduler = api.start_scheduler();
 
