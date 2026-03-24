@@ -142,7 +142,6 @@ impl DehashedApi {
     /// Create a new instance of the SDK.
     ///
     /// **Parameter**:
-    /// - `email`: The mail address that is used for authentication
     /// - `api_key`: The api key for your account (found on your profile page)
     ///
     /// This method fails if the [Client] could not be constructed

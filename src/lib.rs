@@ -10,7 +10,6 @@
 //! ```rust
 //! use dehashed_rs::*;
 //! # tokio_test::block_on(async {
-//! let email = "test@example.com".to_string();
 //! let api_key = "<api_key>".to_string();
 //!
 //! // Create an api instance
@@ -33,7 +32,6 @@
 //! use dehashed_rs::*;
 //! use tokio::sync::oneshot;
 //!# tokio_test::block_on(async {
-//! let email = "test@example.com".to_string();
 //! let api_key = "<api_key>".to_string();
 //!
 //! // Create an api instance
